@@ -1,0 +1,101 @@
+{
+  "_comment": "OpenCut 配置文件 - 复制为 config.json 并修改",
+  
+  "storage": {
+    "type": "local",
+    "path": "/path/to/your/videos",
+    "remote": {
+      "google_drive": {
+        "enabled": false,
+        "folder_id": ""
+      },
+      "baiduyun": {
+        "enabled": false,
+        "access_token": ""
+      }
+    }
+  },
+  
+  "models": {
+    "clip": {
+      "model_name": "openai/clip-vit-base-patch32",
+      "device": "cuda"
+    },
+    "whisper": {
+      "model_size": "base",
+      "device": "cuda",
+      "compute_type": "float16"
+    },
+    "sovits": {
+      "enabled": false,
+      "model_path": "",
+      "config_path": ""
+    }
+  },
+  
+  "indexer": {
+    "fingerprint": {
+      "enabled": true,
+      "threshold": 0.9,
+      "hash_size": 16
+    },
+    "semantic": {
+      "enabled": true,
+      "batch_size": 32,
+      "top_k": 5
+    }
+  },
+  
+  "script": {
+    "adaptive_rewrite": {
+      "enabled": true,
+      "similarity_threshold": 0.6,
+      "timeout_seconds": 600
+    },
+    "confirmation": {
+      "mode": "interactive",
+      "channels": ["discord", "cli"]
+    }
+  },
+  
+  "render": {
+    "beauty": {
+      "enabled": true,
+      "intensity": 0.7,
+      "preserve_eyes": true,
+      "preserve_eyebrows": true
+    },
+    "color_grading": {
+      "enabled": true,
+      "preset": "wanderlust",
+      "skin_tone_protection": true,
+      "skin_tone_range": {
+        "cb": [77, 127],
+        "cr": [133, 173]
+      }
+    },
+    "subtitle": {
+      "enabled": true,
+      "bilingual": true,
+      "font": "Noto Sans CJK SC",
+      "font_size": 24,
+      "outline": 2,
+      "margin_v": 60
+    },
+    "beat_sync": {
+      "enabled": true,
+      "tolerance_frames": 3
+    },
+    "output": {
+      "resolution": [1080, 1920],
+      "fps": 30,
+      "codec": "h264",
+      "crf": 18
+    }
+  },
+  
+  "output": {
+    "directory": "./output",
+    "keep_intermediate": false
+  }
+}
