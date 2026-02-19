@@ -7,6 +7,11 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict
 
+import cv2
+import numpy as np
+
+from .beauty import AdvancedBeautyFilter, apply_beauty_filter_simple
+
 
 class RenderPipeline:
     """全自动渲染管道"""
@@ -17,6 +22,16 @@ class RenderPipeline:
         self.color_config = config.get('color_grading', {})
         self.subtitle_config = config.get('subtitle', {})
         self.output_config = config.get('output', {})
+        
+        # 初始化高级磨皮滤镜
+        if self.beauty_config.get('enabled'):
+            self.beauty_filter = AdvancedBeautyFilter(
+                smooth_strength=self.beauty_config.get('intensity', 0.8),
+                pore_reduction=self.beauty_config.get('pore_reduction', 0.6),
+                acne_threshold=self.beauty_config.get('acne_threshold', 0.3)
+            )
+        else:
+            self.beauty_filter = None
     
     def render(self, script: Dict, materials: List[Dict],
                output: str, config: object):
@@ -86,20 +101,46 @@ class RenderPipeline:
     
     def _apply_beauty_filter(self, input_path: str, 
                             output_base: str) -> str:
-        """应用智能磨皮"""
+        """应用高级磨皮滤镜"""
         output = str(Path(output_base).parent / "step2_beauty.mp4")
-        intensity = self.beauty_config.get('intensity', 0.7)
         
-        # 使用 smartblur 进行皮肤平滑
-        # 注意：完整实现需要 MediaPipe 人脸检测
-        cmd = [
-            "ffmpeg", "-y", "-i", input_path,
-            "-vf", f"smartblur=lr=1.0:ls=-{intensity}:cr=1.0:cs=-{intensity},format=yuv420p",
-            "-c:a", "copy",
-            output
-        ]
+        print("    应用高级磨皮滤镜...")
+        print("    - MediaPipe 人脸检测")
+        print("    - 频率分解（保留纹理）")
+        print("    - 痘印修复")
         
-        subprocess.run(cmd, check=True, capture_output=True)
+        # 打开视频
+        cap = cv2.VideoCapture(input_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        # 创建输出
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(output, fourcc, fps, (width, height))
+        
+        frame_count = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # 应用磨皮
+            if self.beauty_filter:
+                processed = self.beauty_filter.process_video_frame(frame)
+            else:
+                processed = frame
+            
+            out.write(processed)
+            frame_count += 1
+            
+            if frame_count % 30 == 0:
+                print(f"      处理帧: {frame_count}")
+        
+        cap.release()
+        out.release()
+        
+        print(f"    ✓ 磨皮完成: {frame_count} 帧")
         return output
     
     def _apply_color_grading(self, input_path: str, 

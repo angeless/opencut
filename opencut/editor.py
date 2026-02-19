@@ -146,14 +146,25 @@ class OpenCutPipeline:
     
     def _search_materials(self, query: str) -> List[Dict]:
         """语义搜索素材"""
-        # 1. 指纹去重（快速过滤）
+        # 1. 扫描存储
         all_files = self._scan_storage()
-        unique_files = self.indexer['fingerprint'].deduplicate(all_files)
         
-        # 2. CLIP 语义搜索
+        # 2. 指纹去重（快速过滤）
+        unique_files = self.indexer['fingerprint'].deduplicate(all_files)
+        print(f"      扫描到 {len(all_files)} 个文件，去重后 {len(unique_files)} 个")
+        
+        # 3. 确保语义索引已建立
+        existing_clips = self.indexer['semantic'].get_stats()['indexed_clips']
+        if existing_clips < len(unique_files):
+            print(f"      建立语义索引 ({existing_clips} -> {len(unique_files)})...")
+            def progress(current, total):
+                if current % 5 == 0:
+                    print(f"        进度: {current}/{total}")
+            self.indexer['semantic'].batch_index(unique_files, progress)
+        
+        # 4. CLIP 语义搜索
         results = self.indexer['semantic'].search(
             query=query,
-            files=unique_files,
             top_k=self.config['indexer']['semantic']['top_k']
         )
         
@@ -162,21 +173,22 @@ class OpenCutPipeline:
     def _generate_script(self, config: VideoConfig, 
                          materials: List[Dict]) -> Dict:
         """生成初始剧本"""
-        # 使用 LLM 生成剧本框架
         script = {
             'title': config.topic,
             'scenes': [],
-            'narration': '',
+            'narration': f'在探索的路上，我们发现了不一样的美好。{config.topic}',
             'music_style': config.music or 'lofi',
-            'needs_rewrite': False
+            'needs_rewrite': len(materials) == 0,
+            'required_visual': ['travel', 'scenery', 'adventure']
         }
         
-        # 检查素材覆盖度
-        coverage = self._calculate_coverage(script, materials)
-        if coverage < self.config['script']['adaptive_rewrite']['similarity_threshold']:
-            script['needs_rewrite'] = True
-        
         return script
+    
+    def _calculate_coverage(self, script: Dict, materials: List[Dict]) -> float:
+        """计算素材覆盖度"""
+        if not materials:
+            return 0.0
+        return min(1.0, len(materials) / 3.0)
     
     def _adaptive_rewrite(self, script: Dict, 
                           materials: List[Dict]) -> Dict:
